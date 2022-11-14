@@ -7,14 +7,18 @@ import java.util.Random;
 
 
 public class GeneticAlgorithm {
-    private final static int populationSize = 5000;
+    private final static int populationSize = 10000;
     private final static int chromosomeSize = 50;
-    private final static int truncationSelection = 200;
+    private static int truncationSelection = 500;
+    private final static int biodiversityRefresh = 100;
+    private final static int biodiversityScaleFactor = 5;
+
+    private double[] probability = new double[truncationSelection * biodiversityScaleFactor];
     private final static int numberOfOffsprings = populationSize / truncationSelection;
 
     private int[][] cities = new int[chromosomeSize][2];
     private Candidate[] populationArray = new Candidate[populationSize];
-    private Candidate[] selection = new Candidate[truncationSelection];
+    private Candidate[] selection = new Candidate[truncationSelection * biodiversityScaleFactor];
 
     private Candidate best;
     private Candidate current;
@@ -137,15 +141,14 @@ public class GeneticAlgorithm {
     }
 
     private void mutate(Candidate A) {
-        if (rand.nextFloat() < 0.5) {
-            return;
+        while (rand.nextFloat() < 0.5) {
+            int i,j;
+            i = rand.nextInt(2,chromosomeSize - 2);
+            j = rand.nextInt(2,chromosomeSize -2);
+            int[] temp = A.getGene(i);
+            A.setGene(A.getGene(j),i);
+            A.setGene(temp, j);
         }
-        int i,j;
-        i = rand.nextInt(2,chromosomeSize - 2);
-        j = rand.nextInt(2,chromosomeSize -2);
-        int[] temp = A.getGene(i);
-        A.setGene(A.getGene(j),i);
-        A.setGene(temp, j);
     }
 
     private void initialise() {
@@ -158,22 +161,39 @@ public class GeneticAlgorithm {
         this.current = populationArray[populationSize - 1];
     }
 
+    private void truncationSelection() {
+        for(int i = 0; i < truncationSelection; i++) {
+            selection[i] = new Candidate(populationArray[populationSize - i - 1]);
+        }
+    }
+    
+    // private void rouletteWheelSelection() {
+    //     double totalFitness = 0.0;
+    //     for(Candidate i : populationArray) {
+    //         totalFitness += i.getFitness();
+    //     }
+
+
+    // }
+
     private void runSimulation(int generationLimit) {
         int index;
         for(int generation = 0; generation < generationLimit; generation++) {
-            for(int i = 0; i < truncationSelection - 1; i++) {
-                selection[i] = new Candidate(populationArray[populationSize - i - 1]);
-            }
-            selection[truncationSelection - 1] = best;
-            index = 1;
-            while (index < populationSize - 2) {
-                for(int lmao = 0; lmao < numberOfOffsprings; lmao++) {
+            // Every 50 Generations, undergo biodiversity preservation
+            // if (generation % biodiversityRefresh == 0) {
+            //     truncationSelection *= biodiversityScaleFactor;    
+            // }
+            truncationSelection();
+            // selection[truncationSelection - 1] = best;
+            index = 0;
+            while (index < populationSize - 3) {
+                for(int lmao = 0; lmao < populationSize / truncationSelection; lmao++) {
                     for(int i = 0; i < truncationSelection - 1; i++) {
-                        populationArray[index] = OX(populationArray[i], populationArray[i + 1]);
+                        populationArray[index] = OX(selection[i], selection[i + 1]);
                         index++;
                     }
                     if (index != populationSize) {
-                        populationArray[index] = OX(populationArray[0],populationArray[populationSize - 1]);
+                        populationArray[index] = OX(selection[0],selection[truncationSelection - 1]);
                         index++;
                     }
                 }
@@ -184,6 +204,9 @@ public class GeneticAlgorithm {
                 best = current;
             }
             System.out.printf("Generation: %d\tBest Fitness: %.4f\tCurrent Fitness: %.4f\n",generation,best.getFitness(),current.getFitness());
+            // if (generation % biodiversityRefresh == 0) {
+            //     truncationSelection /= biodiversityScaleFactor;
+            // }
         }
     }
 
